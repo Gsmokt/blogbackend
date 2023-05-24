@@ -1,13 +1,16 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/Gsmokt/blogbackend/database"
 	"github.com/Gsmokt/blogbackend/models"
+	"github.com/Gsmokt/blogbackend/util"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func CreatePost(c *fiber.Ctx) error {
@@ -67,5 +70,31 @@ func UpdatePost(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "post updated successfully",
+	})
+}
+
+func UniquePost(c *fiber.Ctx) error {
+	cookie := c.Cookies("jwt")
+	id, _ := util.Parsejwt(cookie)
+	var blog []models.Blog
+	database.DB.Model(&blog).Where("user_id=?", id).Preload("User").Find(&blog)
+	return c.JSON(blog)
+}
+
+func DeletePost(c *fiber.Ctx) error {
+	id, _ := strconv.Atoi(c.Params("id"))
+	blog := models.Blog{
+		Id: uint(id),
+	}
+	deleteQuery := database.DB.Delete(&blog)
+	if errors.Is(deleteQuery.Error, gorm.ErrRecordNotFound) {
+		c.Status(400)
+		return c.JSON(fiber.Map{
+			"message": "Oops! Record not found",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "post deleted successfully",
 	})
 }
